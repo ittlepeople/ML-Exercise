@@ -33,7 +33,7 @@ def cost(X, y, theta):
 def shuffle_data(data):
     np.random.shuffle(data)
     cols = data.shape[1]
-    X = data[:, 0:cols-1]
+    X = data[:, :cols-1]
     y = data[:, cols-1:]
     return X, y
 
@@ -49,6 +49,41 @@ def descent(data, theta, alpha, nums):
         error = (model(X, theta) - y).ravel()
         for j in range(theta_n):
             grad[0, j] = np.sum(np.multiply(error, X[:, j])) / len(X)
+        theta = theta - alpha * grad
+        costs.append(cost(X, y, theta))
+    return theta, costs, time.time() - init_time
+
+
+# 随机梯度下降
+def randomgradient(data, theta, alpha, nums):
+    init_time = time.time()
+    grad = np.mat(np.zeros(theta.shape))  # 计算的梯度
+    theta_n = int(theta.shape[1])
+    m, n = shuffle_data(data)
+    costs = [cost(m, n, theta)]  # 损失值
+    for i in range(nums):
+        X, y = shuffle_data(data)
+        error = (model(X[0, :], theta) - y[0, :]).ravel()
+        for j in range(theta_n):
+            grad[0, j] = np.sum(np.multiply(error, X[0, j]))
+        theta = theta - alpha * grad
+        costs.append(cost(X, y, theta))
+    return theta, costs, time.time() - init_time
+
+
+# 小梯度下降
+def minigradient(data, theta, alpha, nums):
+    init_time = time.time()
+    grad = np.mat(np.zeros(theta.shape))  # 计算的梯度
+    theta_n = int(theta.shape[1])
+    m, n = shuffle_data(data)
+    costs = [cost(m, n, theta)]  # 损失值
+    for i in range(nums):
+        X, y = shuffle_data(data)
+        # 选择多少条数据进行梯度下降
+        error = (model(X[10, :], theta) - y[10, :]).ravel()
+        for j in range(theta_n):
+            grad[0, j] = np.sum(np.multiply(error, X[0, j])) / 10  # 除以多少条数据
         theta = theta - alpha * grad
         costs.append(cost(X, y, theta))
     return theta, costs, time.time() - init_time
@@ -74,15 +109,24 @@ if __name__ == '__main__':
     pdData.insert(0, 'Ones', 1)
     orig_data = np.mat(pdData)
     theta = np.mat(np.zeros([1, 3]))
-    findtheta, costs, dur = descent(orig_data, theta, alpha=0.000001, nums=5000)
-    # print(findtheta, dur)
-    # print(costs)
-    # plt.figure(figsize=(12, 8))
-    # plt.plot(np.arange(5001), costs, 'r')
-    # plt.xlabel('Iterations')
-    # plt.ylabel('Cost')
-    # plt.show()
-    X, y = shuffle_data(orig_data)
+    # 批量梯度下降
+    # findtheta, costs, dur = descent(orig_data, theta, alpha=0.000001, nums=5000)
+    # 随机梯度下降 注意学习率要低
+    # findtheta, costs, dur = randomgradient(orig_data, theta, alpha=0.000001, nums=5000)
+    # 小梯度下降
+    findtheta, costs, dur = minigradient(orig_data, theta, alpha=0.000001, nums=5000)
+    print(findtheta, dur)
+    print(costs)
+    plt.figure(figsize=(12, 8))
+    plt.plot(np.arange(5001), costs, 'r')
+    plt.xlabel('Iterations')
+    plt.ylabel('Cost')
+    plt.show()
+    cols = orig_data.shape[1]  # 求有多少列
+    # rows = orig_data.shape[0]  # 求有多少行
+    # 设置X（训练数据）和y（目标变量）
+    X = orig_data[:, :cols - 1]
+    y = orig_data[:, cols - 1:]
     predictions = predict(X, findtheta)
     correct = [1 if ((a == 1 and b == 1) or (a == 0 and b == 0)) else 0 for (a, b) in zip(predictions, y)]
     accuracy = (sum(map(int, correct)) % len(correct))
