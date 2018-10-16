@@ -8,10 +8,12 @@ from sklearn.model_selection import train_test_split, KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 import itertools
+from imblearn.over_sampling import SMOTE
 
 
 def printing_Kfold_scores(x_train_data, y_train_data):
     '''
+    function: 主要返回一个最佳的 正则化 参数
     KFold(n_splits=’warn’, shuffle=False, random_state=None)  # 其返回的是个索引列
     K 折交叉验证：平均分成 K 份。由前到后开始，第一份为测试集，其余K-1 份为训练集. 训练集的索引为 0， 测试集索引为 1.
     '''
@@ -94,12 +96,16 @@ def plot_confusion_matrix(cm, classes, title='Confusion matrix', cmap=plt.cm.Blu
     # 刻度
     plt.xticks(tick_marks, classes, rotation=0)
     plt.yticks(tick_marks, classes)
-
+    print(cm)
+    print('----:', cm.max())
     thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, cm[i, j],
-                 horizontalalignment="center",
-                 color="white" if cm[i, j] > thresh else "black")
+    # product('ab', range(3)) --> ('a', 0)('a', 1)('a', 2)('b', 0)('b', 1)('b', 2)
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):  # 行、列
+        print(j, i)  # 画图可能坐标相反吧
+        print(cm[i, j])
+
+        '''需要转置，但为什么要转置没想明白？？？？？'''
+        plt.text(j, i, cm[i, j], horizontalalignment="center", color="white" if cm[i, j] > thresh else "black")
 
     plt.tight_layout()
     plt.ylabel('True label')
@@ -121,48 +127,163 @@ if __name__ == '__main__':
     fraud_indices = np.array(data[data.Class == 1].index)
     # 正常样本索引
     normal_indices = np.array(data[data.Class == 0].index)
+    '''
+    ===========下采样=======================================================
+    # '''
+    # # 向下采样-索引
+    # random_normal_indices = np.random.choice(normal_indices, number_records_fraud, replace=False)
+    # random_normal_indices = np.array(random_normal_indices)
+    #
+    # # 样本融合 - 索引
+    # under_sample_indices = np.concatenate([fraud_indices, random_normal_indices])
+    #
+    # # 向下采样数据
+    # under_sample_data = data.iloc[under_sample_indices, :]
+    #
+    # X_undersample = under_sample_data.iloc[:, under_sample_data.columns != 'Class']
+    # y_undersample = under_sample_data.iloc[:, under_sample_data.columns == 'Class']
+    #
+    # print("Percentage of normal transactions: ",
+    #       len(under_sample_data[under_sample_data.Class == 0]) / len(under_sample_data))
+    # print("Percentage of fraud transactions: ",
+    #       len(under_sample_data[under_sample_data.Class == 1]) / len(under_sample_data))
+    # print("Total number of transactions in resampled data: ", len(under_sample_data))
+    #
+    # # 所有数据集分割
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
+    # print("Number transactions train dataset: ", len(X_train))
+    # print("Number transactions test dataset: ", len(X_test))
+    # print("Total number of transactions: ", len(X_train) + len(X_test))
+    #
+    # # 样本数据集分割
+    # X_train_undersample, X_test_undersample, y_train_undersample, y_test_undersample = train_test_split(X_undersample, y_undersample, test_size=0.3, random_state=0)
+    # print("")
+    # print("Number transactions train dataset: ", len(X_train_undersample))
+    # print("Number transactions test dataset: ", len(X_test_undersample))
+    # print("Total number of transactions: ", len(X_train_undersample) + len(X_test_undersample))
+    #
+    # best_c = printing_Kfold_scores(X_train_undersample, y_train_undersample)
 
-    # 向下采样-索引
-    random_normal_indices = np.random.choice(normal_indices, number_records_fraud, replace=False)
-    random_normal_indices = np.array(random_normal_indices)
+    '''
+    ===============混淆矩阵 =========================================================================
+    '''
+    # lr = LogisticRegression(C=best_c, penalty='l1')
+    # lr.fit(X_train_undersample, y_train_undersample.values.ravel())
+    # y_pred_undersample = lr.predict(X_test_undersample.values)
+    #
+    # # Compute confusion matrix
+    # cnf_matrix = confusion_matrix(y_test_undersample, y_pred_undersample)
+    # # 设置打印选项。
+    # np.set_printoptions(precision=2)  # 浮点输出的精度位数
+    #
+    # print("Recall metric in the testing dataset: ", cnf_matrix[1, 1] / (cnf_matrix[1, 0] + cnf_matrix[1, 1]))
+    #
+    # # Plot non-normalized confusion matrix
+    # class_names = [0, 1]
+    # plt.figure()
+    # plot_confusion_matrix(cnf_matrix, classes=class_names, title='Confusion matrix')
+    # plt.show()
 
-    # 样本融合 - 索引
-    under_sample_indices = np.concatenate([fraud_indices, random_normal_indices])
+    '''
+    ==========用下采样练模型，所有样本验证===============================================================
+    '''
+    # lr = LogisticRegression(C=best_c, penalty='l1')
+    # lr.fit(X_train_undersample, y_train_undersample.values.ravel())
+    # # 对所有样本预测
+    # y_pred = lr.predict(X_test.values)
+    #
+    # # Compute confusion matrix
+    # cnf_matrix = confusion_matrix(y_test, y_pred)
+    # np.set_printoptions(precision=2)
+    #
+    # print("Recall metric in the testing dataset: ", cnf_matrix[1, 1] / (cnf_matrix[1, 0] + cnf_matrix[1, 1]))
+    #
+    # # Plot non-normalized confusion matrix
+    # class_names = [0, 1]
+    # plt.figure()
+    # plot_confusion_matrix(cnf_matrix, classes=class_names, title='Confusion matrix')
+    # plt.show()
+    #
+    # '''
+    # ==========用所有样本练模型，所有样本验证===============================================================
+    # '''
+    # best_c = printing_Kfold_scores(X_train, y_train)
+    # lr = LogisticRegression(C=best_c, penalty='l1')
+    # lr.fit(X_train, y_train.values.ravel())
+    # y_pred_undersample = lr.predict(X_test.values)
+    #
+    # # Compute confusion matrix
+    # cnf_matrix = confusion_matrix(y_test, y_pred_undersample)
+    # np.set_printoptions(precision=2)
+    #
+    # print("Recall metric in the testing dataset: ", cnf_matrix[1, 1] / (cnf_matrix[1, 0] + cnf_matrix[1, 1]))
+    #
+    # # Plot non-normalized confusion matrix
+    # class_names = [0, 1]
+    # plt.figure()
+    # plot_confusion_matrix(cnf_matrix
+    #                       , classes=class_names
+    #                       , title='Confusion matrix')
+    # plt.show()
 
-    # 向下采样数据
-    under_sample_data = data.iloc[under_sample_indices, :]
+    '''
+    ==========设置不同的阈值===============================================================
+    '''
+    # lr = LogisticRegression(C=0.01, penalty='l1')
+    # lr.fit(X_train_undersample, y_train_undersample.values.ravel())
+    #
+    # # 返回预测属于某标签的概率
+    # y_pred_undersample_proba = lr.predict_proba(X_test_undersample.values)
+    #
+    # thresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    #
+    # plt.figure(figsize=(10, 10))
+    #
+    # j = 1
+    # for i in thresholds:
+    #     y_test_predictions_high_recall = y_pred_undersample_proba[:, 1] > i
+    #
+    #     plt.subplot(3, 3, j)
+    #     j += 1
+    #
+    #     # Compute confusion matrix
+    #     cnf_matrix = confusion_matrix(y_test_undersample, y_test_predictions_high_recall)
+    #     np.set_printoptions(precision=2)
+    #
+    #     print("Recall metric in the testing dataset: ", cnf_matrix[1, 1] / (cnf_matrix[1, 0] + cnf_matrix[1, 1]))
+    #
+    #     # Plot non-normalized confusion matrix
+    #     class_names = [0, 1]
+    #     plot_confusion_matrix(cnf_matrix, classes=class_names, title='Threshold >= %s' % i)
 
-    X_undersample = under_sample_data.iloc[:, under_sample_data.columns != 'Class']
-    y_undersample = under_sample_data.iloc[:, under_sample_data.columns == 'Class']
+    '''
+    =========过采样============================================================================
+    '''
+    credit_cards = pd.read_csv(path)
+    columns = credit_cards.columns
+    # The labels are in the last column ('Class'). Simply remove it to obtain features columns
+    features_columns = columns.delete(len(columns) - 1)
+    print(features_columns)  # 只显示了列标题
 
-    print("Percentage of normal transactions: ",
-          len(under_sample_data[under_sample_data.Class == 0]) / len(under_sample_data))
-    print("Percentage of fraud transactions: ",
-          len(under_sample_data[under_sample_data.Class == 1]) / len(under_sample_data))
-    print("Total number of transactions in resampled data: ", len(under_sample_data))
+    features = credit_cards[features_columns]
+    labels = credit_cards['Class']
+    features_train, features_test, labels_train, labels_test = train_test_split(features, labels, test_size=0.2, random_state=0)
 
-    # 所有数据集分割
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
-    print("Number transactions train dataset: ", len(X_train))
-    print("Number transactions test dataset: ", len(X_test))
-    print("Total number of transactions: ", len(X_train) + len(X_test))
+    oversampler = SMOTE(random_state=0)
+    os_features, os_labels = oversampler.fit_sample(features_train, labels_train)
+    print('=====', len(os_labels[os_labels == 1]))  # 227454
+    print('类型：', type(os_features))  # <class 'numpy.ndarray'>
 
-    # 样本数据集分割
-    X_train_undersample, X_test_undersample, y_train_undersample, y_test_undersample = train_test_split(X_undersample, y_undersample, test_size=0.3, random_state=0)
-    print("")
-    print("Number transactions train dataset: ", len(X_train_undersample))
-    print("Number transactions test dataset: ", len(X_test_undersample))
-    print("Total number of transactions: ", len(X_train_undersample) + len(X_test_undersample))
+    os_features = pd.DataFrame(os_features)
+    os_labels = pd.DataFrame(os_labels)
+    best_cc = printing_Kfold_scores(os_features, os_labels)
 
-    best_c = printing_Kfold_scores(X_train_undersample, y_train_undersample)
-
-    '''混淆矩阵'''
-    lr = LogisticRegression(C=best_c, penalty='l1')
-    lr.fit(X_train_undersample, y_train_undersample.values.ravel())
-    y_pred_undersample = lr.predict(X_test_undersample.values)
+    lr = LogisticRegression(C=best_cc, penalty='l1')
+    lr.fit(os_features, os_labels.values.ravel())
+    y_pred = lr.predict(features_test.values)
 
     # Compute confusion matrix
-    cnf_matrix = confusion_matrix(y_test_undersample, y_pred_undersample)
+    cnf_matrix = confusion_matrix(labels_test, y_pred)
     np.set_printoptions(precision=2)
 
     print("Recall metric in the testing dataset: ", cnf_matrix[1, 1] / (cnf_matrix[1, 0] + cnf_matrix[1, 1]))
@@ -170,7 +291,5 @@ if __name__ == '__main__':
     # Plot non-normalized confusion matrix
     class_names = [0, 1]
     plt.figure()
-    plot_confusion_matrix(cnf_matrix
-                          , classes=class_names
-                          , title='Confusion matrix')
+    plot_confusion_matrix(cnf_matrix, classes=class_names, title='Confusion matrix')
     plt.show()
