@@ -35,18 +35,15 @@ def printing_Kfold_scores(x_train_data, y_train_data):
 
         recall_accs = []
         '''
-        enumerate将一个可遍历对象（如列表、字符串）组成一个索引序列，
-        将fold里的值迭代出来后增加一个索引。获得索引和元素值（fold对象的值，既训练集和测试集），start=1表示索引从1开始（默认为从0开始排序）
+        fold直接按什么划分。返回 训练集索引 和 测试集索引
         '''
         k = 0
         for train_index, test_index in fold.split(x_train_data):
             # Call the logistic regression model with a certain C parameter
             lr = LogisticRegression(C=c_param, penalty='l1')
             '''
-            # Use the training data to fit the model. In this case, we use the portion of the fold to train the model with indices[1].
             # 使用训练数据来拟合模型。在这种情况下，我们使用训练集来训练模型,索引[0]
-            #  We then predict on the portion assigned as the 'test cross validation' with indices[0]
-            # 然后我们使用索引[0]预测指定为“测试交叉验证”的部分
+            # 然后我们使用索引[1]预测指定为“测试交叉验证”的部分
             '''
             lr.fit(x_train_data.iloc[train_index], y_train_data.iloc[train_index].values.ravel())
 
