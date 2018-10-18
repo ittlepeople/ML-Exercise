@@ -57,8 +57,6 @@ def printing_Kfold_scores(x_train_data, y_train_data):
             k = k + 1
 
         # The mean value of those recall scores is the metric we want to save and get hold of.
-        # 最佳C参数
-        # 千万注意results_table['Mean recall score']的类型是object，要转成float64！
         results_table.ix[j, 'Mean recall score'] = np.mean(recall_accs)
         j += 1
         print('')
